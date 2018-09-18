@@ -1,0 +1,205 @@
+\title{Una panoramica su algoritmi di ottimizzazione}
+\author{
+        Michele Ferraro, matricola 1717025
+}
+\date{19 Agosto 2018}
+
+\documentclass[12pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[italian]{babel}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{mathtools}
+\usepackage{tabto}
+
+\newcommand{\cmmnt}[1]{\ignorespaces}
+
+\begin{document}
+\maketitle
+
+\section*{\hfil Abstract \hfil}
+Durante il corso di Intelligenza Artificiale è stata offerta una panoramica dei problemi di ottimizzazione, descrivendo cosa sono e alcuni algoritmi utili per trattarne la risoluzione. Con questo progetto si vuole ampliare la trattazione, offrendo una visione più ampia e affrontando nuove tipologie di algoritmi, nella fattispecie algoritmi di swarm intelligence e multiobiettivo. Oltre alla presente relazione, è disponibile un piccolo framework per l'implementazione di algoritmi metaeuristici, con alcuni algoritmi già pronti.
+
+\section*{\hfil Introduzione \hfil}
+
+Formalmente \cite{BoydVadenberghe2004}, un problema di ottimizzazione ha la forma \newline 
+
+$\underset{x}{\operatorname{minimize\,}} f(x) \newline
+g_i(x) \leq 0, \quad i=1,\dots,m \newline
+h_j(x) = 0, \quad j=1,\dots,p$ \newline
+
+dove $f(x)$ è la funzione (a codominio reale) il cui valore vogliamo minimizzare (in questo caso viene generalmente detta "funzione di costo"), $x$ è il vettore dei suoi parametri, $m$ e $p$ sono interi positivi, e $g$ e $h$ sono famiglie di funzioni che identificano i vincoli che i parametri devono rispettare.
+È anche possibile una forma alternativa in cui si vuole massimizzare il valore della funzione obiettivo.\newline
+\newline
+Proponiamo di seguito alcuni semplici esempi di problema di ottimizzazione per vedere nella pratica il senso della definizione.
+\begin{itemize}
+\item \textbf{Esempio 1} (un problema banale) - Trovare il valore di $x$, $x\in \mathbb{R}$, che minimizza la funzione $f(x) := x^2$ (è una parabola, con ovvia soluzione $x = 0$).
+
+\item \textbf{Esempio 2} (un problema leggermente più complesso e vincolato) - Trovare il rettangolo di area massima, dato il suo perimetro $p$ (il problema si risolve facilmente per via analitica, ed è usato solamente come esempio immediato). Le variabili di ottimizzazione sono $r_w$ e $r_h$, rispettivamente larghezza e altezza del rettangolo. La funzione obiettivo, in questo caso da massimizzare, è $f(r_w, r_h) := r_w \cdot r_h$ (ci si può facilmente riportare alla definizione originaria, con la funzione obiettivo da minimizzare, utilizzando come funzione obiettivo $f'(r_w, r_h) \coloneqq -f(r_w, r_h)$). Questo problema presenta un solo vincolo da soddisfare, $2 \cdot (r_w+r_h) = p$. Nella notazione originale, dobbiamo avere $h_1(r_w, r_h) = 0$, con $h_1(r_w, r_h) \coloneqq 2 \cdot (r_w+r_h)-p$. Soluzione ottima del problema è $r_w = r_h = \frac{p}{4}$ (fissato il perimetro, il rettangolo di area massima è un quadrato).
+\end{itemize}
+
+A seconda delle caratteristiche dei parametri o delle funzioni coinvolte, è possibile suddividere i problemi di ottimizzazione in diverse categorie: In base al dominio dei parametri, ad esempio, si distingue tra problemi interi (tutti i parametri a dominio intero), continui (tutti i parametri a dominio reale) e misto-interi (alcuni parametri a dominio intero e altri a dominio reale).\newline
+In base alla presenza o meno di vincoli sui parametri si parla di problemi vincolati e non vincolati. Un problema può avere una sola funzione obiettivo oppure più di una, in questo caso si dice multiobiettivo. \newline
+\newline
+Un apporto sostanziale alla risoluzione di problemi di ottimizzazione viene dall'analisi matematica, ma le tecniche di questa categoria non saranno trattate nel dettaglio. Molto brevemente, la conoscenza della forma delle funzioni obiettivo o dei vincoli permette di trovare soluzioni mediante metodi analitici.\newline
+
+\section*{\hfil Algoritmi di ottimizzazione\hfil}
+
+È possibile dividere gli algoritmi di ottimizzazione in due macro-categorie, in base alla metodologia di risoluzione. In primo luogo troviamo algoritmi basati sul calcolo del gradiente. Appartiene a questa categoria, ad esempio, l'algoritmo di steepest ascent/descent.
+Per problemi che ne rispettano le condizioni, metodi molto efficienti sono stati sviluppati per trovare soluzioni. Sono tuttavia meno consigliabili in caso di funzioni più complesse, non differenziabili, con discontinuità, o con presenza di ottimi locali.\newline
+\newline
+Ci concentriamo invece sugli algoritmi di risoluzione meta-euristici. Per meta-euristica si intende, secondo la definizione in \cite{SorensenGlover2003}, una procedura di livello superiore, indipendente dal problema specifico, che fornisce linee guida o strategie da utilizzare nello sviluppo di algoritmi di ottimizzazione euristici. Più semplicemente è, come suggerisce il nome, un'euristica per la gestione o selezione di euristiche. Una caratteristica di spicco di tali algoritmi è che, non necessitando del gradiente e, più in generale, facendo assunzioni minime sulla forma del problema, possono essere facilmente applicabili a una vasta gamma di problemi. Appartengono a questa categoria, tra gli altri, gli algoritmi di swarm intelligence ed evolutivi. Tra i contro, questi algoritmi si affidano spesso alla casualità e non danno garanzie di ottimalità della soluzione trovata.
+
+\subsection*{Ottimizzazione multiobiettivo e SPEA2}
+
+Gli algoritmi visti finora lavorano per minimizzare o massimizzare il valore di una sola funzione obiettivo. Altri algoritmi si occupano di massimizzare più obiettivi contemporaneamente. Problemi con più funzioni obiettivo sono detti multiobiettivo. Un principio importante per questa categoria di problemi è che spesso non esiste una soluzione ottima, cioè migliore di ogni altra rispetto a tutti gli obiettivi. Per questo motivo, c'è bisogno di compromessi nella scelta di una soluzione, e algoritmi di questa categoria calcolano non una sola soluzione, ma un insieme di soluzioni, tali che, comunque siano prese due soluzioni dall'insieme, nessuna delle due sia migliore dell'altra rispetto a tutti gli obiettivi. Formalmente, prese due soluzioni $s_1$ e $s_2$ e una famiglia $f_i, i = 1,\dots,n$ di funzioni obiettivo da massimizzare, si dice che $s_1$ domina $s_2$, e si scrive $s_1 \succ s_2$, se\newline
+ $\underset{i \in 1,\dots,n}{\forall} f_i(s_1) \geq f_i(s_2) \quad \land \quad \exists i \in 1,\dots,n : f_i(s_1) > f_i(s_2)$.\newline
+Si definisce ottimo paretiano una soluzione non dominata da nessun'altra. Algoritmi come SPEA2 \cite{ZitzlerAl2001}, che si descrive di seguito, si prefiggono lo scopo di trovare il fronte di Pareto, composto dall'insieme delle soluzioni pareto-ottimali.\newline
+\newline
+Lo Strength Pareto Evolutionary Algorithm 2 è un algoritmo che presenta tutte le caratteristiche principali degli algoritmi evolutivi (riproduzione, crossing over, mutazioni), con particolarità che lo rendono adatto alla ricerca multiobiettivo. Un punto interessante dell'algoritmo è che, oltre alla popolazione di ogni generazione, è presente un secondo insieme di individui, detto archivio, che mantiene individui non dominati attraverso le successive iterazioni/generazioni (si parla in questo caso di elitismo). Inoltre, la scelta degli individui da usare per le operazioni di riproduzione avviene tra i soli membri dell'archivio, limitando il ruolo della popolazione di una generazione a pool di candidati ad una posizione dell'archivio nella generazione successiva. \newline
+\newline
+Input: \newline
+\tab \tab$ N_P$ : dimensione della popolazione \newline
+\tab \tab $N_A$ : dimensione dell'archivio \newline
+\tab \tab T : numero di generazioni \newline
+\newline
+Output: \newline
+\tab \tab S : l'insieme delle soluzioni pareto-ottimali trovate \newline
+\newline
+Algoritmo:\newline
+\tab \tab 1) Crea $P_0$, popolazione di $N_P$ individui casuali, e $A_0 = \emptyset$, archivio inizialmente vuoto. Imposta $t = 0$.\newline
+\tab \tab 2) Calcola i valori delle funzioni obiettivo per tutti gli individui in $P_t$ e $A_t$, e conseguentemente i valori di fitness come segue: \newline
+ad ogni individuo $i$ di $P_t$ e $A_t$ associa un valore S (\textit{strength}): \newline
+\newline
+ $S(i) = |\left\{ j \in P_t \cup A_t : i \succ j \right\}|$.  \newline 
+\newline
+La \textit{strength} di un individuo corrisponde al numero di individui che domina nell'insieme di riferimento ($P_t \cup A_t$). Sulla base di questo, associa ad ogni individuo un valore di \textit{raw fitness} R: \newline
+\newline
+$R(i) = \underset{j \in P_t \cup A_t : j \succ i}{\sum} S(i)$, \newline
+\newline
+corrispondente alla somma dei valori di \textit{strength} che dominano l'individuo. Per ogni individuo $i$, infine, si assegna una penalità basata sulla densità di distribuzione delle soluzioni: sia $\sigma_i^k$ la distanza tra il vettore dei parametri di $i$ e quello del k-esimo individuo ad esso più vicino in $P_t \cup A_t$ (generalmente si sceglie $k = \sqrt{N_P + N_A}$). Si definisce quindi la densità di di un individuo come:\newline
+\newline
+$D(i) = \frac{\displaystyle 1}{\displaystyle \sigma_i^k + 2}$.\newline
+\newline
+Tale penalità viene aggiunta per incoraggiare una distribuzione uniforme delle soluzioni lungo il fronte di Pareto. \newline 
+A questo punto la fitness (da minimizzare) F di un individuo $i$ è semplicemente $F(i) = R(i) + D(i)$.\newline
+Per la definizione di $D$, considerando che $\sigma_i^k$ è un reale non negativo, $D(i) \in \left( 0, 1 \right)$ e funge quindi da spareggio tra soluzioni con valori di \textit{raw fitness} equivalenti. \newline
+\tab \tab 3) Crea $A_{t+1} = \emptyset$, l'archivio della generazione successiva. Copia in $A_{t+1}$ tutti gli individui di $P_t$ e $A_t$ che non sono dominati. In altre parole, $A_{t+1} \leftarrow \left\{ i \in P_t \cup A_t : \left( \nexists i' \in P_t \cup A_t : i' \succ i \right) \right\}$. È possibile eseguire questa operazione copiando gli individui $i$ tali che $F(i) < 1$. Se $|A_{t+1}| > N_A$, elimina gli elementi in eccesso tramite l'operazione di troncamento (passo 3.1), altrimenti aggiungi a $A_{t+1}$ elementi dominati (passo 3.2). \newline
+\tab \tab 3.1) Per riempire l'insieme $A_{t+1}$, è sufficiente ordinare l'insieme $P_t \cup A_t$ in ordine crescente di fitness. A questo punto basta copiare i primi $N_A - |A_{t+1}|$ elementi con fitness $\geq$ 1 (quelli con fitness inferiore a 1 sono già stati inseriti in quanto non dominati da nessuno). \newline
+\tab \tab 3.2) Si definisce una relazione d'ordine debole su $A_{t+1}$: dati due suoi individui $i$ e $j$, diciamo che: \newline
+\newline
+$i \leq_d j \iff \newline
+\hspace*{2cm} \forall  0 < k < |A_{t+1}| : \sigma_i^k = \sigma_j^k \quad \lor \newline
+\hspace*{2cm} \exists 0 < k < |A_{t+1}| : \left[ \left( \forall 0 < l < k : \sigma_i^l = \sigma_j^l \right) \land \sigma_i^k < \sigma_j^k \right]$ \newline 
+\newline
+In parole, i precede j nell'ordinamento se i valori di $\sigma_i$ e $\sigma_j$ sono uguali per ogni k (e in questo caso vale anche $j \leq_d i$), oppure se, per il primo k per cui tali valori differiscono, si ha $\sigma_i^k < \sigma_j^k$ (in questo caso $i <_d j$).
+In questo caso, i valori $\sigma$ vengono calcolati similarmente agli analoghi nel punto 2 dell'algoritmo, ma sul solo insieme $A_{t+1}$. A questo punto si cerca un minimo di questo ordinamento, cioè un elemento \newline $i \in A_{t+1} : \forall j \in A_{t+1} \quad i \leq_d j$, e lo si rimuove da $A_{t+1}$. Si cerca in questo modo di eliminare agglomerati molto concentrati di soluzioni, lasciando invece intatti individui più isolati. Questo punto viene reiterato finché non si arriva ad ottenere $|A_{t+1}| = N_A$. \newline
+\tab \tab 4) Se si raggiunge il criterio di terminazione (t = T), restituisci l'insieme S di soluzioni in $A_{t+1}$ non dominate.\newline
+\tab \tab 5) Riempi il mating pool con elementi del solo archivio $A_{t+1}$, scelti tramite tornei binari con reinserimento. \newline
+\tab \tab 6) Applica le operazioni di crossover e mutazione agli elementi della mating pool fino a ottenere $N_P$ individui, che costituiscono $P_{t+1}$, la popolazione della generazione successiva. Aumenta $t$ di 1 vai al passo 2. \newline
+
+\subsection*{Swarm intelligence e Particle Swarm Optimization}
+
+Negli algoritmi di ricerca locale, la procedura prevede la modifica graduale di uno stato (un assegnamento alle variabili) per arrivare, passo dopo passo, alla soluzione finale. Negli algoritmi di swarm intelligence, invece, si mantengono contemporaneamente più soluzioni, che possono "interagire" per dar vita a comportamento intelligente. Appartengono a questa categoria numerosi algoritmi di ispirazione naturale, che riescono ad ottenere buoni risultati imitando il comportamento di gruppi di animali (ad esempio artificial bee colony e ant colony optimization). Tali algoritmi sono però stati criticati perché, per quanto utili, hanno raramente portato innovazioni nel campo dell'intelligenza artificiale o dell'ottimizzazione, limitandosi ad essere esperimenti pratici ma senza elementi di novità a livello teorico. \cite{Sorensen2015}\newline
+\newline
+Si descrive di seguito un algoritmo di questo tipo, Particle Swarm Optimization \cite{KennedyEberhart1995}. Ragioniamo in termini di funzione obiettivo da massimizzare. L'algoritmo prevede diverse istanze di particelle, ognuna delle quali memorizza posizione e velocità correnti e la migliore posizione individualmente attraversata. Si memorizza anche la migliore posizione tra tutte quelle iniziali delle particelle. Ad ogni iterazione, la velocità di ogni particella viene modificata, tendendo a muovere la particella verso gli ottimi individuale e globale.\newline
+\newline
+Input:\newline
+\tab \tab $x_{min}, \quad x_{max}$ : bound per i parametri
+\tab \tab N : numero di particelle \newline
+\tab \tab $\omega$ : fattore di inerzia \newline
+\tab \tab $\phi_i$ : fattore cognitivo \newline
+\tab \tab $\phi_s$ : fattore sociale \newline
+\tab \tab I : numero di iterazioni \newline
+\newline
+Output: \newline
+\tab \tab S : la migliore soluzione trovata \newline
+\newline
+Algoritmo: \newline
+\tab \tab 1) Inizializza le N particelle in posizioni (assegnamenti di parametri) casuali. Per ognuna, imposta il valore migliore attraversato alla posizione corrente. Imposta il valore del massimo globale $best\_pos$ alla posizione della particella a fitness maggiore. \newline
+\tab \tab 2) Per ogni particella, imposta la velocità corrente a un vettore di valori casuali uniformi compresi tra $-|x_{max} - x_{min}|$ e $|x_{max} - x_{min}|$. La velocità di una particella lungo una dimensione è quindi al più, in valore assoluto, l'intera ampiezza dell'intervallo ammissibile per la coordinata corrispondente. \newline
+\tab \tab 3) Per ogni particella $p$, aggiorna il valore della velocità $p_{velocity}$ secondo la formula \newline $p_{velocity}  \leftarrow \omega \cdot p_{velocity} + \phi_i \cdot r_i \cdot \left( p_{best\_pos} - p_{curr\_pos} \right) + \phi_s \cdot r_s \cdot \left( best\_pos - p_{curr\_pos} \right) $,\newline
+dove $r_i $ e $r_s$ sono vettori di reali con distribuzione uniforme in $ \left( 0, 1 \right) $, campionati per ogni particella. Tale formula è assimilabile a una combinazione lineare della precedente velocità e delle distanze dalle posizioni migliori individuale e globale, i cui coefficienti sono parametri dell'algoritmo, e con aggiunta di un elemento di casualità nei vettori $r_i$ e $r_g$. La particella quindi si muove inizialmente in una direzione casuale, ma la sua traiettoria viene influenzata nel tempo da $p_{best\_pos}$ e $best\_pos$. \newline
+\tab \tab 4) Aggiorna la posizione di ogni particella $p$, secondo la formula \newline $p_{curr\_pos} \leftarrow p_{curr\_pos} + p_{velocity}$, cioè semplicemente sommando posizione e velocità correnti. Se la nuova posizione è migliore della posizione migliore attraversata dalla particella (cioè se $fitness(p_{curr\_pos}) >  fitness(p_{best\_pos})$), aggiorna il valore di $p_{best\_pos}$ ($p_{best\_pos} \leftarrow p_{curr\_pos}$). Se la nuova posizione è anche migliore della migliore posizione globale aggiorna anche quest'ultima (quindi, $best\_pos \leftarrow p_{curr\_pos}$). \newline
+\tab \tab 5) Se sono state eseguite I iterazioni (o comunque si verifica una condizione di terminazione), restituisci $best\_pos$, altrimenti ritorna al punto 3. \newline 
+\newline
+
+\subsubsection*{PSO, varianti e lo stato dell'arte}
+
+Il funzionamento della versione base dell'algoritmo PSO è stato esteso in numerosissime versioni, in cui guadagna la possibilità di essere applicato a problemi di ottimizzazione (misto-)intera, vincolati, multiobiettivo. Ampio spazio è stato dato alla ricerca di valori e procedure di metaottimizzazione per i parametri dell'algoritmo. Una buona analisi dello stato dell'arte è disponibile in \cite{ChengAl2018}. \newline
+\newline
+Una prima alternativa (Fully Informed PSO) vede la velocità della particella essere influenzata dalle posizioni migliori di tutte le altre particelle, non viene cioè mantenuto l'ottimo globale. Formalmente, nella formulazione originale \cite{MendesAl2004}, in fase di aggiornamento della velocità, date costanti $\phi$ (costante di accelerazione, con ruolo analogo a $\phi_i$ e $\phi_s$ nella descrizione dell'algoritmo data precedentemente) e $\chi$, la velocità della particella $p$ viene aggiornata secondo la formula \newline
+\newline
+$p_{velocity} \leftarrow \chi \left( p_{velocity} + \sum_{p' \in Particles} \frac{\displaystyle \phi*Uniform(0,1)*\left( p'_{best\_pos} - p_{curr\_pos}\right)}{\displaystyle N} \right)$. \newline
+\newline
+Varianti intermedie tra i due approcci prevedono invece clustering delle particelle, ognuna delle quali è influenzata soltanto dalle particelle (o dalla migliore delle particelle) nel suo vicinato. In \cite{KennedyMendes2003}, le particelle e la relazione di vicinanza nell'insieme delle stesse viene espresso tramite un grafo, i cui nodi corrispondono alle particelle e c'è un arco due nodi-particelle se le due si influenzano a vicenda. In questa formulazione, il grafo della variante canonica dell'algoritmo è completamente connesso; varianti includono disposizioni a griglia (ogni particella connessa agli adiacenti nella griglia) e ad anello (ogni particella connessa alle due particelle che la precedono e seguono).\newline
+\newline
+Un elemento di ricerca è l'equilibrio tra strategie focalizzate su exploration (esplorare porzioni dello spazio di ricerca non ancora visitate per scoprire potenziali nuove buone posizioni) e exploitation (esplorare le vicinanze di una buona posizione già trovata). In \cite{ZhanAl2009}, si propone una strategia adattiva per i parametri $\omega$, $\phi_i$ e $\phi_s$ in funzione della densità delle particelle: ad ogni iterazione, si calcola la distanza media di ogni particella $p$ secondo la seguente formula: \newline
+\newline
+$d_{p} \coloneqq \frac{\displaystyle 1}{\displaystyle N-1} \sum_{p' \in Particles, p' \neq p} \left\Vert p_{curr\_pos} - p'_{curr_pos} \right\Vert $,
+cioè semplicemente come media delle distanze rispetto a tutte le altre particelle. \newline
+Si calcolano $d_g$ come il $d$ della particella correntemente nella posizione migliore, $d_{min}$ e $d_{max}$ come i $d$ minimi e massimi, e da questi si ricava il fattore evolutivo\newline
+\newline
+ $f \coloneqq \frac{\displaystyle d_g - d_{min}}{\displaystyle d_{max}-d_{min}} \in \left[ 0, 1 \right]$. \newline
+\newline
+$f$ indica quindi dove la densità della particella migliore si colloca rispetto all'intero intervallo delle densità di tutte le particelle. Un valore intermedio di $f$ indica uno stato di esplorazione (non ci sono agglomerati significativi di particelle), un valore basso una fase di convergenza (la particella migliore si trova in una porzione ad alta densità di particelle), mentre un valore alto indica la probabile presenza di una concentrazione di particelle in un ottimo locale da cui bisogna sfuggire (questa fase viene indicata con il nome di \textit{Jumping Out}). In base al valore di $f$ si incrementano o decrementano l'inerzia e i fattori cognitivo e sociale da usare nello sciame. In fase di Jumping Out, ad esempio, diminuisce $\phi_i$ e aumenta $\phi_s$, in modo che le particelle intrappolate nell'ottimo locale tendano a fuggirne, in direzione dell'ottimo esterno. Analoghi comportamenti si verificano per le altre fasi. 
+\newline
+Un'ampia area di ricerca è rappresentata dagli algoritmi ibridi, che cioè uniscono alla PSO procedimenti tipici di altri algoritmi di ottimizzazione. In \cite{KrinkAl2002}, si propone un "ciclo di vita" per le particelle, che possono muoversi secondo lo schema della PSO, seguire le modalità di selezione, ricombinazione e mutazione tipiche degli algoritmi genetici, oppure spostarsi secondo l'hill-climbing, con ogni particella che cambia fase dopo che un certo numero di iterazioni non porta un miglioramento.
+\newline
+La PSO è stata usata con successo anche in problemi di ottimizzazione intera: in \cite{LaskariAl2002} si nota come sia possibile ottenere ottimi risultati semplicemente troncando, ad ogni iterazione, la parte decimale della posizione delle particelle.\newline
+\newline
+Anche problemi vincolati stati efficacemente affrontati con PSO: un primo approccio prevede di eseguire l'algoritmo classico e di considerare solamente le posizioni valide in fase di aggiornamento delle posizioni migliori. Una seconda tecnica prevede invece l'uso di funzioni di penalità sui vincoli violati. Per funzione di penalità (penalty function) si intende un termine della funzione obiettivo con il compito di penalizzare una soluzione che viola un dato vincolo; essa aumenta il valore della funzione di costo (o diminuisce il valore della funzione di utilità) quando il vincolo è violato, e vale 0 quando quest'ultimo è invece soddisfatto.\newline
+\newline
+La Particle Swarm Optimization è applicata anche a problemi multiobiettivo, si basa generalmente sul mantenimento di un archivio delle posizioni migliori (elitismo), e le diverse implementazioni differiscono principalmente per la strategia di assegnamento della posizione migliore in fase di aggiornamento della velocità di una particella. Una review è presente in \cite{HuYen2015}: ogni particella può essere influenzata da un diverso ottimo paretiano, scelto, tra gli altri metodi, casualmente o in base a criteri di densità, e in base sia alla popolazione corrente che all'archivio delle soluzioni non dominate. Le posizioni non dominate attraversate possono quindi essere inserite nell'archivio e restituite alla fine.
+
+\section*{\hfil Implementazione di alcuni algoritmi \hfil}
+
+In allegato alla presente relazione, è presente un piccolo framework per l'implementazione di algoritmi metaeuristici. Tra i file allegati, \texttt{optimizers.h} implementa le funzionalità di base e alcuni algoritmi (tra cui pattern search, una versione di hill climbing per problemi interi, PSO e SPEA2). Il file \texttt{main.cpp} mostra esempi di utilizzo degli algoritmi. La documentazione in HTML del framework è presente nella cartella \texttt{docs}.
+
+\subsection*{Caratteristiche dell'implementazione}
+
+Si è scelto di implementare il framework allegato in C++ per motivi sia di performance che di semplice preferenza personale. Il framework si propone come scopo principale quello di accompagnare la presente relazione fornendo un riscontro pratico a quanto descritto finora. \newline 
+L'insieme di funzionalità proposte è molto basilare, pensato solamente per fornire delle fondamenta su cui costruire le implementazioni degli algoritmi. Nello specifico, sono state realizate semplici classi per parametri (classe \texttt{parameter}, che unifica parametri interi e continui) e problemi di ottimizzazione, più utilità per rendere più snello il codice applicativo.\newline
+\newline
+Si è scelto di implementare l'intera libreria come un solo file header per diverse ragioni. In primo luogo vi è la semplicità per l'utilizzatore del framework di integrarlo in un proprio progetto: non essendo state utilizzate librerie esterne, ed essendo anzi l'intero codice scritto in C++11 standard, è sufficiente includere l'header per poter fare uso del framework. Un approccio alternativo vedrebbe la distribuzione del progetto tramite header puramente dichiarativo più un file di libreria precompilato. Un approccio di questo tipo permetterebbe di nascondere i dettagli implementativi, ed è infatti seguto da risolutori commerciali (ad esempio Gurobi \cite{Gurobi} e CPLEX \cite{Cplex}). Al contrario, gli aspetti  di didatticità e dimostratività di questo progetto portano a voler esporre i dettagli delle implementazioni piuttosto che nasconderli, anche nella prospettiva di rendere il sorgente disponibile pubblicamente (diventa anche molto semplice in questo caso implementare nuovi algoritmi prendendo ad esempio quelli già implementati, o sperimentare modificando questi ultimi). \newline
+Un ultimo approccio consiste nel suddividere l'implementazione in più file, tra header dichiarativi \texttt{.h} e sorgenti implementativi \texttt{.cpp}, per rendere più gestibile la complessità del framework. Questo approccio è stato evitato principalmente per i motivi di semplicità di integrazione descritti precedentemente, ed è adottato da diversi progetti anche di complessità non banale \cite{JsonModern} \cite{stb}.\newline
+
+\subsection*{Esempi proposti}
+
+Sono proposti esempi per mostrare l'uso e le capacità del framework.
+\begin{itemize}
+\item Problema di ottimizzazione banale, presentato solo allo scopo di illustrare il funzionamento del framework. Per questo motivo, ogni passaggio è maggiormente commentato rispetto agli esempi successivi;
+\item Riduzione di n-queens a problema di ottimizzazione. I vincoli sono espressi tramite penalty function, secondo l'euristica della minimizzazione del numero di attacchi presentata a lezione. Una penalità è assegnata a valori per le variabili non interi. Per un valore molto piccolo di $n$ (es. 4 o 5) la PSO canonica (basata su variabili a valori reali) risolve velocemente e consistentemente il problema, ma per valori maggiori si rivela quasi del tutto inutilizzabile. Spunti di miglioramento includono l'inclusione delle tecniche per PSO su valori interi, come il passo di approssimazione presentato precedentemente, anche se il problema è tipicamente affrontato con algoritmi specifici per CSP. Successivamente viene proposta una procedura di risoluzione tramite backtracking, che scala ovviamente molto meglio;
+\item Ottimizzazione di funzione di parametri a valori reali non convessa, caso d'uso tipico di PSO;
+\item Ottimizzazione di funzione di parametri a valori reali vincolata (funzione di Simionescu);
+\item Problema multiobiettivo, affrontato tramite SPEA2;
+\item Nella seconda relazione allegata si mostra un esempio semplice ma concreto di utilizzo del framework, attraverso un caso di studio in cui la PSO si è rivelata efficace. I dettagli sono nel file \texttt{rel2.pdf}.
+\end{itemize}
+Analizzando gli output ottenuti dal framework sui problemi proposti, si nota come PSO canonica funzioni molto bene come algoritmo generico di ottimizzazione, nonostante le ovvie difficoltà in casi di ottimizzazione di problemi vincolati (es. Simionescu). 
+
+\section*{\hfil Bibliografia e riferimenti \hfil}
+\renewcommand{\section}[2]{}
+\begin{thebibliography}{1}
+
+\bibitem {BoydVadenberghe2004} Boyd, Vadenberghe - {\em Convex Optimization} - 2004
+\bibitem {SorensenGlover2003} Sörensen, Glover - {\em Metaheuristics} - 2003
+\bibitem {ZitzlerAl2001} Zitzler, Laumanns, Thiele - {\em SPEA2: Improving the Strength Pareto Evolutionary Algorithm} - 2001
+\bibitem {Sorensen2015} Sörensen - {\em Metaheuristics - the metaphor exposed} - 2015
+\bibitem {KennedyEberhart1995} Kennedy, Eberhant - {\em Particle Swarm Optimization} - 1995
+\bibitem {ChengAl2018} Cheng, Lu, Lei, Shi - {\em A quarter century of particle swarm optimization} - 2018
+\bibitem {MendesAl2004} Mendes, Kennedy, Neves - {\em The fully informed particle swarm: simpler, maybe better} - 2004
+\bibitem {KennedyMendes2003} Kennedy, Mendes - {\em Neighborhood topologies in fully-informed and best-of-neighborhood particle swarms} - 2003
+\bibitem {ZhanAl2009} Zhan, Zhang, Li, Chung - {\em Adaptive Particle Swarm  Optimization} - 2009
+\bibitem {KrinkAl2002} Krink, Løvbjerg - {\em The LifeCycle Model: Combining Particle Swarm Optimisation, Genetic Algorithms and HillClimbers} - 2002
+\bibitem {LaskariAl2002} Laskari, Parsopoulos, Vrahatis - {\em Particle swarm optimization for integer programming} - 2002
+\bibitem {HuYen2015} Hu, G. Yen - {\em Adaptive Multiobjective Particle Swarm Optimization Based on Parallel Cell Coordinate System} - 2015
+\bibitem {Gurobi} Gurobi, \url{http://www.gurobi.com}
+\bibitem {Cplex} IBM CPLEX Optimizer, \url{https://www.ibm.com/analytics/cplex-optimizer}
+\bibitem {JsonModern} JSON for Modern C++, \url{https://nlohmann.github.io/json/}
+\bibitem {stb} stb, \url{https://github.com/nothings/stb}
+
+\end{thebibliography}
+
+\end{document}
