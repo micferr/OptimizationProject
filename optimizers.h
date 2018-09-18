@@ -1,40 +1,62 @@
+/*! @file optimizers.h
+ *  @brief A simple header-only framework for optimization algorithms
+ */
+
 #ifndef OPTIMIZERS_H
 #define OPTIMIZERS_H
 
 #include <ctime>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <queue>
 #include <random>
 #include <set>
+#include <string>
 #include <vector>
 
-// Utility class for random numbers
+/// @brief Utility class for random numbers
 struct random_generator {
+	/// @brief The rand_engine
 	std::mt19937 rand_engine; // Public for simplicity
 
 	random_generator() {
 		rand_engine.seed(time(nullptr));
 	}
+	/// @brief Returns a random integer in [min,max].
 	int rand(int min, int max) {
 		return std::uniform_int_distribution<int>(min, max)(rand_engine);
 	};
+	/// @brief Returns a random floating-point value in [min,max].
 	float rand(float min, float max) {
 		return std::uniform_real_distribution<float>(min, max)(rand_engine);
 	}
 };
 
+/// @brief Type of a \ref parameter
 enum param_type {
 	INTEGER, REAL
 };
 
+/// @brief A parameter for an optimization problem
+///
+/// A \ref parameter is an abstraction to represent a parameter of an optimization
+/// problem. It can be integer or real, and utility methods are available to 
+/// make its handling easier.
 class parameter {
-	std::string parname;
+	std::string parname; // The parameter's name
 	int imin, imax, ival; // For an integer parameter
 	float rmin, rmax, rval; // For a real parameter
 	param_type type;
 public:
-	// Constructors
+	///
+	/// @name Constructors
+	///
+	/// @param name Name of the parameter
+	/// @param min Minimum allowed value 
+	/// @param max Maximum allowed value 
+	/// @param val Initial value, defaults to (min+max)/2
+	// @{
 	parameter(const std::string& name, int min, int max, int val) {
 		if (!(min <= val && val <= max)) {
 			throw new std::runtime_error("Invalid parameter values");
@@ -57,12 +79,16 @@ public:
 		type = REAL;
 	}
 	parameter(const std::string& name, float min, float max) : parameter(name, min, max, (min + max) / 2.f) {}
+	// @}
 
+	/// @brief Returns the name of the parameter.
 	const std::string& get_name() const {
 		return parname;
 	}
 
-	// Returns the bounds of the integer parameter
+	/// @name Integer bounds
+	// @{
+	/// @brief Returns the minimum and maximum allowed values.
 	const std::pair<int,int> get_ibounds() const {
 		if (type == INTEGER) {
 			return { imin,imax };
@@ -71,14 +97,19 @@ public:
 			throw new std::runtime_error("Invalid parameter type");
 		}
 	}
+	/// Returns the minimum allowed value.
 	int get_imin() const {
 		return get_ibounds().first;
 	}
+	/// Returns the maximum allowed value.
 	int get_imax() const {
 		return get_ibounds().second;
 	}
+	// @}
 
-	// Returns the bounds of the real parameter
+	/// @name Real bounds
+	// @{
+	/// @brief Returns the minimum and maximum allowed value.
 	const std::pair<float, float> get_rbounds() const {
 		if (type == REAL) {
 			return { rmin, rmax };
@@ -87,24 +118,35 @@ public:
 			throw new std::runtime_error("Invalid parameter type");
 		}
 	}
+	/// @brief Returns the minimum allowed value.
 	float get_rmin() const {
 		return get_rbounds().first;
 	}
+	/// @brief Returns the maximum allowed value.
 	float get_rmax() const {
 		return get_rbounds().second;
 	}
+	// @}
 
+	/// @name Parameter type checking
+	// @{
+	/// @brief Returns the type of the parameter, which can be integer or real.
 	param_type get_type() const {
 		return type;
 	}
-
+	/// @brief Returns whether the parameter is integer-valued.
 	bool is_integer() const {
 		return type == INTEGER;
 	}
+	/// @brief Returns whether the parameter is real-valued.
 	bool is_real() const {
 		return !is_integer();
 	}
+	//  @}
 
+	/// @name Value getters
+	// @{
+	/// @brief Returns the value of the parameter, assuming it is integer-valued.
 	int get_ival() const {
 		if (is_integer()) {
 			return ival;
@@ -113,6 +155,7 @@ public:
 			throw new std::runtime_error("Invalid parameter type");
 		}
 	}
+	/// @brief Returns the value of the parameter, assuming it is real-valued.
 	float get_rval() const {
 		if (is_real()) {
 			return rval;
@@ -121,7 +164,13 @@ public:
 			throw new std::runtime_error("Invalid parameter type");
 		}
 	}
+	// @}
 
+	/// @name Value setters
+	/// @param value The new value
+	/// @param rg A random_generator
+	// @{
+	/// @brief Sets the new value of the parameter, assuming it is integer-valued.
 	void set_ival(int value) {
 		if (is_integer() && imin <= value && value <= imax) {
 			ival = value;
@@ -130,6 +179,7 @@ public:
 			throw new std::runtime_error("Invalid parameter type or value");
 		}
 	}
+	/// @brief Sets the new value of the parameter, assuming it is real-valued.
 	void set_rval(float value) {
 		if (is_real() && rmin <= value && value <= rmax) {
 			rval = value;
@@ -138,27 +188,34 @@ public:
 			throw new std::runtime_error("Invalid parameter type or value");
 		}
 	}
-
+	/// @brief Sets the value of the parameter to a random value within its bounds.
 	void set_random(random_generator& rg) {
 		if (is_integer()) ival = rg.rand(imin, imax);
 		else rval = rg.rand(rmin, rmax);
 	}
 };
 
+/// @brief An optimization problem
+///
+/// A simple class to manage all the properties of optimization files, such as constraints
+/// and objective functions. It internally holds a modifiable assignment for the parameters 
+/// as an utility, which single-objective optimizers are expected to modify to return a solution.
 class optimization_problem {
-	// The constraints this problem is subject to (empty if unconstrained).
-	// A constraint is expressed through a boolean function of the parameters,
-	// returning true if the assignment is feasible
+	/// The constraints this problem is subject to (empty if unconstrained).
+	/// A constraint is expressed through a boolean function of the parameters,
+	/// returning true if the assignment is feasible
 	std::vector<std::function<bool(const std::vector<parameter>&)>> constraints;
 
-	// The objectives (one or more) of the problem, utility functions to be maximized
+	/// The objectives (one or more) of the problem, utility functions to be maximized
 	std::vector<std::function<float(const std::vector<parameter>&)>> objectives;
 
-	// The problem's parameters
+	/// The problem's parameters
 	std::vector<parameter> params;
 public:
 	
-	// Checks the kind of problem
+	/// @name Problem kind checking
+	// @{
+	/// @brief Returns whether the problem is an integer problem.
 	bool is_integer_problem() const {
 		if (params.size() == 0) return false;
 		for (const auto& p : params) {
@@ -166,6 +223,7 @@ public:
 		}
 		return true;
 	};
+	/// @brief Returns whether the problem is a continuous problem.
 	bool is_continuous_problem() const {
 		if (params.size() == 0) return false;
 		for (const auto& p : params) {
@@ -173,27 +231,37 @@ public:
 		}
 		return true;
 	};
+	/// @brief Returns whether the problem is a mixed-integer problem.
 	bool is_mixed_integer_problem() const {
 		if (params.size() == 0) return false;
 		return !(is_integer_problem() || is_continuous_problem());
 	};
 
+	/// @brief Returns whether the problem has exactly one objective.
 	bool is_single_objective() const {
 		return objectives.size() == 1;
 	}
+	/// @brief Returns whether the problem has more than one objective.
 	bool is_multiobjective() const {
 		return objectives.size() > 1;
 	}
 
+	/// @brief Returns whether the problem is constrained
 	bool is_constrained() const {
 		return constraints.size() > 0;
 	}
+	/// @brief Returns whether the problem is unconstrained
 	bool is_unconstrained() const {
 		return !is_constrained();
 	}
+	// @}
 
-	// Checks whether the given parameter assignment is feasible
-	// It is assumed that the input parameters are the ones required by the problem.
+	/// @name Feasibility
+	/// @brief Checks whether a parameter assignment is feasible.
+	///        It is assumed that the input parameters are the ones required by the problem.
+	// @{
+	/// @brief Checks whether a parameter assignment is feasible.
+	/// @param parameters A parameter assignment
 	bool is_feasible(const std::vector<parameter>& parameters) const {
 		for (const auto& c : constraints) {
 			if (!c(parameters)) {
@@ -202,14 +270,17 @@ public:
 		}
 		return true;
 	}
-
-	// Checks whether the current parameter assignment is feasible
+	/// @brief Checks whether the internal parameter assignment is feasible
 	bool is_feasible() const {
 		return is_feasible(params);
 	}
+	// @}
 
-	// Returns the fitness value for a parameter assignment to this (single-objective) problem.
-	// It is assumed that the input parameters are the ones required by the problem.
+	/// @name Objective value(s) getters
+	///
+	/// @brief Returns the fitness value(s) for a parameter assignment.
+	// @{
+	/// @brief Returns the fitness value for a given parameter assignment.
 	float get_objective_value(const std::vector<parameter>& parameters) const {
 		if (is_single_objective()) {
 			return objectives[0](parameters);
@@ -218,9 +289,7 @@ public:
 			throw new std::exception("Invalid problem type");
 		}
 	}
-
-	// Returns the fitness value for a parameter assignment to this (multi-objective) problem.
-	// It is assumed that the input parameters are the ones required by the problem.
+	/// @brief Returns the fitness values for a given parameter assignment.
 	std::vector<float> get_objectives_values(const std::vector<parameter>& parameters) const {
 		std::vector<float> values(objectives.size());
 		for (auto i = 0; i < objectives.size(); i++) {
@@ -228,86 +297,142 @@ public:
 		}
 		return values;
 	}
-
-	// Returns the fitness value for a single-objective problem
+	/// @brief Returns the fitness value for the internal parameter assignment.
 	float get_objective_value() const {
 		return get_objective_value(params);
 	}
-
-	// Returns the fitness values for a multi-objective problem
+	/// @brief Returns the fitness values for the internal parameter assignment.
 	std::vector<float> get_objectives_values() const {
 		return get_objectives_values(params);
 	}
+	// @}
 
+	/// @name Problem setup
+	// @{
+	/// @brief Adds a constraint to the program.
+	/// @param constraint The constraint to add
 	void add_constraint(std::function<bool(const std::vector<parameter>&)> constraint) {
 		constraints.push_back(constraint);
 	}
-
+	/// @brief Adds an objective function to the program.
+	/// @param objective The objective function to add.
 	void add_objective(std::function<float(const std::vector<parameter>&)> objective) {
 		objectives.push_back(objective);
 	}
-
+	/// @brief Adds a parameter to the problem.
+	/// @param param The parameter to add
 	void add_parameter(const parameter& param) {
 		params.push_back(param);
 	}
+	// @}
 
-	// Returning a const vector would be better to prevent unwanted modifications
-	// of the parameter vector (e.g. removing parameters or adding new ones), 
-	// however both std::vector<T>::operator[] and std::vector<T>::at() are not const
-	// and thus can't be used on a const vector.
-	// Good faith use is assumed
+	/// @brief Returns the parameters of the problem, together with the internal assignment.
+	///
+	/// Returning a const vector would be better to prevent unwanted modifications
+	/// of the parameter vector (e.g. removing parameters or adding new ones), 
+	/// however both std::vector&lt;T&gt;::operator[] and std::vector&lt;T&gt;::at() are not const
+	/// and thus can't be used on a const vector.
+	/// Good faith use is assumed
 	std::vector<parameter>& get_params() {
 		return params;
 	}
+
+	/// @name Debug utilities
+	// @{
+	/// @brief Prints statistics about the problem.
+	///
+	///        Prints the name, bounds and current value of all parameters and all 
+	///        objective functions' values.
+	void print_status(const std::vector<parameter>& parameters) {
+		std::cout << "Parameters:\n";
+		for (const auto& p : parameters) {
+			std::cout << p.get_name() << "\t" << (p.is_integer() ? p.get_ival() : p.get_rval()) << "\n";
+		}
+		std::cout << "--------\n";
+		if (is_single_objective()) {
+			std::cout << "Objective: " << get_objective_value() << "\n";
+		}
+		else {
+			auto objs = get_objectives_values();
+			for (int i = 0; i < objs.size(); i++) {
+				std::cout << "Objective " << (i + 1) << ": \t" << objs[i] << "\n";
+			}
+		}
+	}
+
+	/// @brief Prints statistics about the problem.
+	///
+	///        Prints the name, bounds of all parameters,their current value in the
+	///        internal assignment and objective functions' values, relative to the
+	///        internal assignment.
+	void print_status() {
+		print_status(params);
+	}
+	// @}
 };
 
-// Utility functions for checking the algorithm is compatible with the problem type
+/// @name Requires
+///
+/// @brief Utility functions to check whether the algorithm is compatible with the problem type
+/// @param problem The optimization_problem to check
+// @{
+/// @brief Checks if the problem is single-objective, throws an exception on failure
 void require_single_objective(const optimization_problem& problem) {
 	if (!problem.is_single_objective()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem is multi-objective, throws an exception on failure
 void require_multiobjective(const optimization_problem& problem) {
 	if (!problem.is_multiobjective()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem is constrained, throws an exception on failure.
 void require_constrained(const optimization_problem& problem) {
 	if (!problem.is_constrained()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem is unconstrained, throws an exception on failure.
 void require_unconstrained(const optimization_problem& problem) {
 	if (!problem.is_unconstrained()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem is integer-valued, throws an exception on failure.
 void require_integer(const optimization_problem& problem) {
 	if (!problem.is_integer_problem()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem is real-valued, throws an exception on failure.
 void require_continuous(const optimization_problem& problem) {
 	if (!problem.is_continuous_problem()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+/// @brief Checks if the problem's current internal assignment is feasible, 
+///        throws an exception on failure.
 void require_feasible(const optimization_problem& problem) {
 	if (!problem.is_feasible()) {
 		throw new std::runtime_error("Invalid problem type");
 	}
 }
+// @}
 
-/// Optimization algorithms ///
+// Optimization algorithms 
 // Convention: the algorithms return true iff the final assignment of the parameters
 // is feasible and the problem has a single objective function.
 // For multiobjective optimization, a vector of solutions is returned instead (empty if
 // no solution is found).
 // TODO: Find a more uniform convention
 
-// Tries 'tries' random assignments of the parameters and chooses the one which
-// maximizes fitness.
-// Only implemented as an example
+/// @fn bool best_random(optimization_problem& problem, unsigned tries)
+/// @brief Tries \p tries random assignments of the parameters and chooses the one which
+/// maximizes fitness.
+/// @param problem The problem to optimize
+/// @param tries The number of random assignments generated
 bool best_random(
 	optimization_problem& problem,
 	unsigned tries
@@ -332,10 +457,12 @@ bool best_random(
 	return !first_iteration;
 }
 
-// Hill climbing algorithm: at each step, choose the neighbour that
-// maximizes the utility function
-// In this implementation, a neighbour is an assignment where a parameter
-// is either increased or decreased by 1 
+/// @fn hill_climbing(optimization_problem& problem)
+/// @brief Hill-climbing algorithm
+///
+/// In this implementation, a neighbour is an assignment where exactly one
+/// parameter has its value either increased or decreased by 1.
+/// @param problem The integer problem to optimize
 bool hill_climbing(optimization_problem& problem) {
 	require_single_objective(problem);
 	require_integer(problem);
@@ -398,9 +525,13 @@ bool hill_climbing(optimization_problem& problem) {
 	return true;
 }
 
-// Hooke and Jeeves' pattern search.
-// 
-// The search terminates when delta is lower than eps
+/// @fn bool pattern_search(optimization_problem& problem, float delta, float eps = 0.0001)
+/// @brief Hooke and Jeeves' pattern search.
+/// 
+/// The search terminates when delta is lower than eps.
+/// @param problem The problem to optimize
+/// @param delta The starting delta for the parameters
+/// @param eps delta threshold for termination
 bool pattern_search(
 	optimization_problem& problem,
 	float delta,
@@ -470,6 +601,15 @@ bool pattern_search(
 	return true;
 }
 
+/// @fn bool particle_swarm(
+///     optimization_problem& problem,
+///     float inertia,
+///     float cognitive_factor,
+///     float social_factor,
+///     int num_particles,
+///     unsigned num_iterations
+/// )
+/// @brief Canonical Particle Swarm Optimization
 bool particle_swarm(
 	optimization_problem& problem,
 	float inertia,
@@ -585,10 +725,23 @@ bool particle_swarm(
 	return true; // A solution is always found
 }
 
+/// @brief Short for a vector of vectors of parameters.
+///		   Can be used to refer more quickly to a set of complete 
+///        parameter assignements,
 typedef std::vector<std::vector<parameter>> solutions;
 
-// SPEA-2 algorithm, as described in 
-// SPEA2: Improving the Strength Pareto Evolutionary Algorithm (Zitzler et al., 2001)
+/// @fn solutions spea2(
+/// optimization_problem& problem,
+/// unsigned population_size,
+/// unsigned archive_size,
+/// unsigned max_generations,
+/// const std::function<std::vector<parameter>(
+///	const std::vector<parameter>&,
+///	const std::vector<parameter>&
+///	)>& mating_operator = ...,
+/// const std::function<void(std::vector<parameter>&)>& mutation_operator = ...)
+/// @brief SPEA-2 algorithm, as described in 
+///        SPEA2: Improving the Strength Pareto Evolutionary Algorithm (Zitzler et al., 2001)
 solutions spea2(
 	optimization_problem& problem,
 	unsigned population_size,
@@ -610,10 +763,12 @@ solutions spea2(
 	const std::function<void(std::vector<parameter>&)>& mutation_operator = [](auto& params) {
 		random_generator rg;
 		for (auto& param : params) {
-		// Change the value of each parameter by at most 10%, with a probability of 0.1
-			if (rg.rand(0.f, 1.f) >= 0.9f) {
-				auto min_new = std::max(param.get_rmin(), param.get_rval()*0.9f);
-				auto max_new = std::min(param.get_rmax(), param.get_rval()*1.1f);
+			// Change the value of each parameter by at most 10% of its valid range, 
+			// with a probability of 0.1
+			if (rg.rand(0.f, 1.f) <= 0.1f) {
+				auto valid_range = param.get_rmax() - param.get_rmin();
+				auto min_new = std::max(param.get_rmin(), param.get_rval()-valid_range*0.1f);
+				auto max_new = std::min(param.get_rmax(), param.get_rval()+valid_range*0.1f);
 				param.set_rval(rg.rand(min_new, max_new));
 			}
 		}
@@ -635,12 +790,12 @@ solutions spea2(
 		float fitness;
 
 		bool dominates(const individual& ind) const {
-			bool at_least_one_is_higher = false;
+			bool at_least_one_is_better = false;
 			for (auto i = 0; i < objective_values.size(); i++) {
 				if (objective_values[i] < ind.objective_values[i]) return false;
-				else if (objective_values[i] > ind.objective_values[i]) at_least_one_is_higher = true;
+				else if (objective_values[i] > ind.objective_values[i]) at_least_one_is_better = true;
 			}
-			return at_least_one_is_higher;
+			return at_least_one_is_better;
 		}
 	};
 	std::vector<individual> population, archive;
@@ -665,7 +820,7 @@ solutions spea2(
 		const std::vector<individual>& pop,
 		const std::vector<individual>& arch
 		) {
-		auto f = 0.f;
+		auto f = 0;
 		for (const auto& i : pop) {
 			if (i.dominates(ind)) f += strength(i, pop, arch);
 		}
@@ -730,8 +885,10 @@ solutions spea2(
 	}
 
 	for (auto t = 0; t < max_generations; t++) {
+
 		// Find each individual's fitness as the sum of its raw fitness and 
 		// density (lower is better)
+
 		for (auto& ind : population) {
 			ind.objective_values = problem.get_objectives_values(ind.params);
 			ind.fitness =
@@ -744,14 +901,12 @@ solutions spea2(
 				raw_fitness(ind, population, archive) +
 				density(ind, population, archive);
 		}
-		std::shuffle(population.begin(), population.end(), rg.rand_engine);
-		std::shuffle(archive.begin(), archive.end(), rg.rand_engine);
 
 		// Fill archive of next iteration
 		std::vector<individual> next_archive;
 		// First, copy all nondominated solutions from population and archive
 		std::vector<individual*> dominated;
-		for (auto i = 0; i < population.size() && next_archive.size() < archive_size; i++) {
+		for (auto i = 0; i < population.size(); i++) {
 			if (!is_dominated(population[i], population, archive)) {
 				next_archive.push_back(population[i]);
 			}
@@ -759,7 +914,7 @@ solutions spea2(
 				dominated.push_back(&population[i]);
 			}
 		}
-		for (auto i = 0; i < archive.size() && next_archive.size() < archive_size; i++) {
+		for (auto i = 0; i < archive.size(); i++) {
 			if (!is_dominated(archive[i], population, archive)) {
 				next_archive.push_back(archive[i]);
 			}
@@ -771,28 +926,31 @@ solutions spea2(
 		while (next_archive.size() > archive_size) {
 			// Truncation operation
 
-			// Less-than operator as described in the paper (section 3.2)
+			// Less-than operator described in the paper (section 3.2)
 			//
 			// i1 is less than i2 in the weak ordering iff either:
 			// - sigma_i_k = sigma_j_k for all k
 			// - Exists k s.t. sigma_i_l = sigma_j_l for 0 < l < k and sigma_i_k < sigma_j_k
+			auto na_copy = next_archive;
 			auto less_than = [&](const auto& i1, const auto& i2) {
 				std::vector<individual*> dist1, dist2;
-				for (auto& i : next_archive) {
+				for (auto& i : na_copy) {
 					dist1.push_back(&i);
 					dist2.push_back(&i);
 				}
+
 				// Sort by proximity to i1 and i2, respectively
-				std::sort(dist1.begin(), dist1.end(), [&](auto& _i1, auto& _i2){
-					return 
-						squared_distance(i1.params, _i1->params) < 
+				std::sort(dist1.begin(), dist1.end(), [&](auto& _i1, auto& _i2) {
+					return
+						squared_distance(i1.params, _i1->params) <
 						squared_distance(i1.params, _i2->params);
 				});
-				std::sort(dist1.begin(), dist1.end(), [&](auto& _i1, auto& _i2){
+				std::sort(dist2.begin(), dist2.end(), [&](auto& _i1, auto& _i2) {
 					return
 						squared_distance(i2.params, _i1->params) <
-						squared_distance(i2.params, _i1->params);
+						squared_distance(i2.params, _i2->params);
 				});
+
 				// Ignore the nearest element as it's the individual itself
 				for (auto i = 1; i < dist1.size(); i++) {
 					auto sigma_i = squared_distance(i1.params, dist1[i]->params);
@@ -800,7 +958,7 @@ solutions spea2(
 					if (sigma_i < sigma_j) return true;
 					else if (sigma_i > sigma_j) return false;
 				}
-				return true;
+				return false;
 			};
 			// Find the minimum element and delete it
 			std::sort(next_archive.begin(), next_archive.end(), less_than);
@@ -825,28 +983,28 @@ solutions spea2(
 			unsigned parents[2];
 			for (auto j = 0; j < 2; j++) {
 				// Choose two random individual for each parent role, and choose the best
-				// among the two with probability 0.8
+				// among the two with probability 0.7
 				unsigned candidate_parents[2];
 				for (auto k = 0; k < 2; k++) candidate_parents[k] = rg.rand(0, next_archive.size()-1);
+				// Best candidate is put in index 0
 				auto fitness0 = raw_fitness(next_archive[candidate_parents[0]], {}, next_archive);
 				auto fitness1 = raw_fitness(next_archive[candidate_parents[1]], {}, next_archive);
-				if (fitness0 < fitness1) {
+				if (fitness0 > fitness1) {
 					std::swap(candidate_parents[0], candidate_parents[1]);
 				} 
-				parents[j] = candidate_parents[rg.rand(0.f, 1.f) > 0.8f ? 0 : 1];
+
+				parents[j] = candidate_parents[rg.rand(0.f, 1.f) < 0.7f ? 0 : 1];
 			}
 
-			auto child_params = mating_operator(
+			individual child;
+			child.params = mating_operator(
 				next_archive[parents[0]].params, next_archive[parents[1]].params
 			);
-			mutation_operator(child_params);
-			individual child;
-			child.params = child_params;
+			mutation_operator(child.params);
 			child.objective_values = problem.get_objectives_values(child.params);
 			population.push_back(child);
 		}
-		archive.clear();
-		for (auto& i : next_archive) archive.push_back(i);
+		archive = next_archive;
 	}
 
 	solutions sols;
@@ -859,9 +1017,9 @@ solutions spea2(
 				dominated = true;
 				break;
 			}
-			if (!dominated) {
-				sols.push_back(archive[i].params);
-			}
+		}
+		if (!dominated) {
+			sols.push_back(archive[i].params);
 		}
 	}
 	return sols;
