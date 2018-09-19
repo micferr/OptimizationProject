@@ -884,7 +884,8 @@ solutions spea2(
 		population.push_back(ind);
 	}
 
-	for (auto t = 0; t < max_generations; t++) {
+	auto t = 0;
+	while (true) {
 
 		// Find each individual's fitness as the sum of its raw fitness and 
 		// density (lower is better)
@@ -975,6 +976,11 @@ solutions spea2(
 			for (auto i = 0; i < num_needed; i++) {
 				next_archive.push_back(*(dominated[i]));
 			}
+		}
+
+		if (++t == max_generations) {
+			archive = next_archive;
+			break;
 		}
 
 		//Tournament, mating, mutation
